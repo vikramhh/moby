@@ -777,8 +777,21 @@ Try {
             Write-Host -ForegroundColor Cyan "INFO: Running unit tests at $(Get-Date)..."
             $ErrorActionPreference = "SilentlyContinue"
             $Duration=$(Measure-Command {docker run -e DOCKER_GITCOMMIT=$COMMITHASH$CommitUnsupported docker hack\make.ps1 -TestUnit | Out-Host })
+            $TestRunExitCode = $LastExitCode
             $ErrorActionPreference = "Stop"
-            if (-not($LastExitCode -eq 0)) {
+
+            $JunitExpectedFilePath = "$contPath\junit-report.xml"
+            if (Test-Path $JunitExpectedFilePath -PathType leaf) {
+                docker cp $JunitExpectedFilePath $env:TEMP\junit-report-unit-tests.xml
+                if (-not($LastExitCode -eq 0)) {
+                    Throw "ERROR: Failed to docker cp the test report (junit-report.xml) to $env:TEMP"
+                }
+            }
+            else {
+                Write-Host -ForegroundColor Magenta "WARN: junit (Unit test) results($JunitExpectedFilePath) not found"
+            }
+
+            if (-not($TestRunExitCode -eq 0)) {
                 Throw "ERROR: Unit tests failed"
             }
             Write-Host  -ForegroundColor Green "INFO: Unit tests ended at $(Get-Date). Duration`:$Duration"
